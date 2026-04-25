@@ -6,6 +6,18 @@ import {
 const API_BASE_PATH = resolveApiBasePath(import.meta.env.VITE_API_BASE_URL);
 const DEFAULT_REQUEST_TIMEOUT_MS = 65000;
 
+export async function requestServerHealth({ timeoutMs = 15000 } = {}) {
+  const response = await fetchWithTimeout(
+    buildApiUrl('/health'),
+    {
+      method: 'GET',
+    },
+    timeoutMs,
+  );
+
+  return readApiResponse(response);
+}
+
 export async function transcribeAudioChunk({
   audioBlob,
   endedAt,
@@ -95,11 +107,15 @@ async function readApiResponse(response) {
   return payload;
 }
 
-async function fetchWithTimeout(url, options = {}) {
+async function fetchWithTimeout(
+  url,
+  options = {},
+  timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     controller.abort();
-  }, DEFAULT_REQUEST_TIMEOUT_MS);
+  }, timeoutMs);
 
   try {
     return await fetch(url, {

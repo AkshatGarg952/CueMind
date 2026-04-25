@@ -35,6 +35,8 @@ app.get('/api/health', (_request, response) => {
     status: 'ok',
     service: 'twin-mind-server',
     defaultsLoaded: Boolean(runtime.defaults),
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.round(process.uptime()),
   });
 });
 

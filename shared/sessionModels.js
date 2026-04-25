@@ -1,4 +1,5 @@
 export const RECORDING_STATES = ['idle', 'recording', 'processing', 'error'];
+export const SESSION_STORAGE_KEY = 'twin-mind-session';
 
 export const SUGGESTION_TYPES = [
   'question',
@@ -81,11 +82,17 @@ export function createSuggestionBatch({
   return {
     id,
     createdAt: createTimestamp(createdAt),
-    basedOnTranscriptIds,
-    suggestions: suggestions.map((suggestion) => ({
-      ...suggestion,
-      batchId: suggestion.batchId || id,
-    })),
+    basedOnTranscriptIds: Array.isArray(basedOnTranscriptIds)
+      ? basedOnTranscriptIds.filter(Boolean)
+      : [],
+    suggestions: Array.isArray(suggestions)
+      ? suggestions.map((suggestion) =>
+          createSuggestion({
+            ...suggestion,
+            batchId: suggestion?.batchId || id,
+          }),
+        )
+      : [],
   };
 }
 
@@ -113,8 +120,18 @@ export function createSessionState({
   chatMessages = [],
 } = {}) {
   return {
-    transcriptChunks,
-    suggestionBatches,
-    chatMessages,
+    transcriptChunks: Array.isArray(transcriptChunks)
+      ? transcriptChunks.map((transcriptChunk) =>
+          createTranscriptChunk(transcriptChunk),
+        )
+      : [],
+    suggestionBatches: Array.isArray(suggestionBatches)
+      ? suggestionBatches.map((suggestionBatch) =>
+          createSuggestionBatch(suggestionBatch),
+        )
+      : [],
+    chatMessages: Array.isArray(chatMessages)
+      ? chatMessages.map((chatMessage) => createChatMessage(chatMessage))
+      : [],
   };
 }

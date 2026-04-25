@@ -49,6 +49,7 @@ export function useLiveSession({
   const shouldRerunSuggestionRefreshRef = useRef(false);
   const shouldRestartRecorderAfterStopRef = useRef(false);
   const shouldSuppressAutoRefreshRef = useRef(false);
+  const sessionRevisionRef = useRef(0);
   const settingsRef = useRef(settings);
   const audioContextRef = useRef(null);
   const audioLevelTimerRef = useRef(null);
@@ -172,6 +173,8 @@ export function useLiveSession({
   }
 
   async function startRecording() {
+    const sessionRevision = sessionRevisionRef.current;
+
     try {
       setErrorMessage('');
 
@@ -196,6 +199,12 @@ export function useLiveSession({
           noiseSuppression: true,
         },
       });
+
+      if (sessionRevision !== sessionRevisionRef.current) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
       const mimeType = getSupportedAudioMimeType();
       mediaStreamRef.current = mediaStream;
       recorderMimeTypeRef.current = mimeType;
@@ -225,6 +234,10 @@ export function useLiveSession({
         )}. Brief pauses between thoughts help each chunk close cleanly before the next one starts.`,
       );
     } catch (error) {
+      if (sessionRevision !== sessionRevisionRef.current) {
+        return;
+      }
+
       isRecordingSessionActiveRef.current = false;
       shouldRestartRecorderAfterStopRef.current = false;
       teardownRecordingSession({
@@ -525,6 +538,7 @@ export function useLiveSession({
     try {
       while (chunkQueueRef.current.length > 0) {
         const nextChunk = chunkQueueRef.current.shift();
+        const sessionRevision = sessionRevisionRef.current;
         try {
           const transcriptionResponse = await transcribeAudioChunk({
             audioBlob: nextChunk.blob,
@@ -533,6 +547,10 @@ export function useLiveSession({
             settings: settingsRef.current,
             startedAt: nextChunk.startedAt,
           });
+
+          if (sessionRevision !== sessionRevisionRef.current) {
+            continue;
+          }
 
           if (transcriptionResponse?.transcriptChunk) {
             const transcriptChunk = transcriptionResponse.transcriptChunk;
@@ -557,6 +575,10 @@ export function useLiveSession({
             setStatusMessage(transcriptionResponse.message);
           }
         } catch (error) {
+          if (sessionRevision !== sessionRevisionRef.current) {
+            continue;
+          }
+
           setErrorMessage(normalizeErrorMessage(error));
           setStatusMessage(
             'The latest audio chunk could not be transcribed. Recording can continue, and you can retry on the next chunk or use manual refresh.',
@@ -582,10 +604,13 @@ export function useLiveSession({
     isManualRefreshing,
     isSuggestionRefreshing,
     recordingState,
+    resetLiveSession,
     statusMessage,
   };
 
   async function refreshSuggestions(origin) {
+    const requestSessionRevision = sessionRevisionRef.current;
+
     if (transcriptChunksRef.current.length === 0) {
       setStatusMessage('Suggestions need at least one transcript chunk before they can refresh.');
       return;
@@ -612,6 +637,10 @@ export function useLiveSession({
           transcriptChunks: transcriptChunksRef.current,
         });
 
+        if (requestSessionRevision !== sessionRevisionRef.current) {
+          return;
+        }
+
         if (refreshResponse?.batch) {
           lastAutoSuggestionRefreshAtRef.current = Date.now();
           suggestionBatchesRef.current = [
@@ -632,6 +661,10 @@ export function useLiveSession({
         }
       } while (shouldRerunSuggestionRefreshRef.current);
     } catch (error) {
+      if (requestSessionRevision !== sessionRevisionRef.current) {
+        return;
+      }
+
       setErrorMessage(normalizeErrorMessage(error));
       setStatusMessage('Suggestion refresh failed. Fix the issue above, then try again.');
       throw error;
@@ -683,6 +716,45 @@ export function useLiveSession({
       autoSuggestionRefreshTimerRef.current = null;
       void refreshSuggestions('auto').catch(() => {});
     }, delayMs);
+  }
+
+  async function resetLiveSession() {
+    sessionRevisionRef.current += 1;
+    chunkQueueRef.current = [];
+    shouldRerunSuggestionRefreshRef.current = false;
+    shouldRestartRecorderAfterStopRef.current = false;
+    shouldSuppressAutoRefreshRef.current = false;
+    suggestionRefreshInFlightRef.current = false;
+    clearAutoSuggestionRefreshTimer(autoSuggestionRefreshTimerRef);
+    lastAutoSuggestionRefreshAtRef.current = 0;
+    resolveWaiters(flushWaitersRef);
+    resolveWaiters(queueIdleWaitersRef);
+    resolveWaiters(stopWaitersRef);
+    isRecordingSessionActiveRef.current = false;
+    teardownRecordingSession({
+      chunkStopTimeoutRef,
+      mediaRecorderRef,
+      mediaStreamRef,
+      nextChunkStartedAtRef,
+      audioContextRef,
+      audioLevelTimerRef,
+      audioAnalyserRef,
+      speechStatsRef,
+      recorderHandlersRef,
+      recorderMimeTypeRef,
+      skipRecorderStop: false,
+    });
+
+    if (isMountedRef.current) {
+      setErrorMessage('');
+      setIsManualRefreshing(false);
+      setIsRecorderActive(false);
+      setIsSuggestionRefreshing(false);
+      setIsTranscribing(false);
+      setStatusMessage(
+        'Session cleared. Start the microphone to build a fresh transcript and suggestion history.',
+      );
+    }
   }
 }
 

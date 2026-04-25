@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   DEFAULT_SETTINGS_STORAGE_KEY,
   createDefaultSettings,
@@ -7,14 +7,17 @@ import {
 import {
   createChatMessage,
   createSessionState,
+  SESSION_STORAGE_KEY,
 } from '@shared/sessionModels.js';
 import { AppHeader } from './components/AppHeader.jsx';
 import { ChatPanel } from './components/ChatPanel.jsx';
 import { SettingsModal } from './components/SettingsModal.jsx';
+import { ServerWarmupScreen } from './components/ServerWarmupScreen.jsx';
 import { SuggestionsPanel } from './components/SuggestionsPanel.jsx';
 import { TranscriptPanel } from './components/TranscriptPanel.jsx';
 import { useLiveSession } from './hooks/useLiveSession.js';
 import { useLocalStorageState } from './hooks/useLocalStorageState.js';
+import { useServerReadiness } from './hooks/useServerReadiness.js';
 import { requestChatReply } from './utils/api.js';
 import {
   exportSessionAsJson,
@@ -29,17 +32,47 @@ const RECORDING_STATUS_LABELS = {
 };
 
 export default function App() {
+  const {
+    attemptCount,
+    errorMessage: readinessErrorMessage,
+    isReady: isServerReady,
+    isRetrying: isCheckingServer,
+    retryNow: handleServerRetry,
+    statusMessage: readinessStatusMessage,
+  } = useServerReadiness();
+
+  if (!isServerReady) {
+    return (
+      <ServerWarmupScreen
+        attemptCount={attemptCount}
+        errorMessage={readinessErrorMessage}
+        isRetrying={isCheckingServer}
+        onRetryNow={handleServerRetry}
+        statusMessage={readinessStatusMessage}
+      />
+    );
+  }
+
+  return <WorkspaceApp />;
+}
+
+function WorkspaceApp() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isChatResponding, setIsChatResponding] = useState(false);
   const [chatErrorMessage, setChatErrorMessage] = useState('');
   const [activeSuggestionId, setActiveSuggestionId] = useState(null);
   const [chatDraft, setChatDraft] = useState('');
+  const sessionRevisionRef = useRef(0);
   const [settings, setSettings] = useLocalStorageState(
     DEFAULT_SETTINGS_STORAGE_KEY,
     createDefaultSettings(),
     mergeSettings,
   );
-  const [sessionState, setSessionState] = useState(() => createSessionState());
+  const [sessionState, setSessionState] = useLocalStorageState(
+    SESSION_STORAGE_KEY,
+    createSessionState(),
+    createSessionState,
+  );
   const {
     activityLabel,
     errorMessage,
@@ -48,6 +81,7 @@ export default function App() {
     isManualRefreshing,
     isSuggestionRefreshing,
     recordingState,
+    resetLiveSession,
     statusMessage,
   } = useLiveSession({
     settings,
@@ -87,6 +121,7 @@ export default function App() {
       return;
     }
 
+    const requestSessionRevision = sessionRevisionRef.current;
     const chatHistory = sessionState.chatMessages;
     const focusTranscriptIds = findSuggestionFocusTranscriptIds(
       suggestion,
@@ -117,6 +152,10 @@ export default function App() {
       transcriptChunks: sessionState.transcriptChunks,
     })
       .then((chatResponse) => {
+        if (requestSessionRevision !== sessionRevisionRef.current) {
+          return;
+        }
+
         if (!chatResponse?.assistantMessage) {
           throw new Error(
             'The server returned an empty answer for the selected suggestion.',
@@ -132,9 +171,17 @@ export default function App() {
         }));
       })
       .catch((error) => {
+        if (requestSessionRevision !== sessionRevisionRef.current) {
+          return;
+        }
+
         setChatErrorMessage(normalizeClientError(error));
       })
       .finally(() => {
+        if (requestSessionRevision !== sessionRevisionRef.current) {
+          return;
+        }
+
         setIsChatResponding(false);
         setActiveSuggestionId(null);
       });
@@ -149,6 +196,7 @@ export default function App() {
       return;
     }
 
+    const requestSessionRevision = sessionRevisionRef.current;
     const chatHistory = sessionState.chatMessages;
     const userMessage = createChatMessage({
       role: 'user',
@@ -173,6 +221,10 @@ export default function App() {
         transcriptChunks: sessionState.transcriptChunks,
       });
 
+      if (requestSessionRevision !== sessionRevisionRef.current) {
+        return;
+      }
+
       if (!chatResponse?.assistantMessage) {
         throw new Error('The server returned an empty assistant reply.');
       }
@@ -185,10 +237,28 @@ export default function App() {
         ],
       }));
     } catch (error) {
+      if (requestSessionRevision !== sessionRevisionRef.current) {
+        return;
+      }
+
       setChatErrorMessage(normalizeClientError(error));
     } finally {
+      if (requestSessionRevision !== sessionRevisionRef.current) {
+        return;
+      }
+
       setIsChatResponding(false);
     }
+  }
+
+  async function handleNewSession() {
+    sessionRevisionRef.current += 1;
+    setChatDraft('');
+    setChatErrorMessage('');
+    setActiveSuggestionId(null);
+    setIsChatResponding(false);
+    setSessionState(createSessionState());
+    await resetLiveSession();
   }
 
   function handleExportJson() {
@@ -214,8 +284,10 @@ export default function App() {
           feedbackMessage={errorMessage || statusMessage}
           feedbackTone={errorMessage ? 'error' : 'info'}
           isManualRefreshing={isManualRefreshing}
+          isNewSessionDisabled={recordingState === 'processing'}
           isSuggestionRefreshing={isSuggestionRefreshing}
           onManualRefresh={handleManualRefresh}
+          onNewSession={handleNewSession}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onToggleRecording={handleRecordingToggle}
           recordingState={recordingState}

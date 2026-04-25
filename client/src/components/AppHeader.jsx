@@ -18,8 +18,10 @@ export function AppHeader({
   feedbackMessage,
   feedbackTone,
   isManualRefreshing,
+  isNewSessionDisabled,
   isSuggestionRefreshing,
   onManualRefresh,
+  onNewSession,
   onOpenSettings,
   onToggleRecording,
   recordingState,
@@ -66,6 +68,14 @@ export function AppHeader({
             {isManualRefreshing || isSuggestionRefreshing
               ? 'Refreshing...'
               : 'Manual refresh'}
+          </button>
+          <button
+            className="control-button control-button--ghost"
+            disabled={isNewSessionDisabled}
+            onClick={onNewSession}
+            type="button"
+          >
+            New session
           </button>
           <button
             className="control-button control-button--ghost"
