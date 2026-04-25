@@ -159,5 +159,22 @@ function resolveApiBasePath(value) {
     return '/api';
   }
 
-  return normalizedValue.replace(/\/+$/, '');
+  const withoutTrailingSlashes = normalizedValue.replace(/\/+$/, '');
+
+  if (!/^https?:\/\//i.test(withoutTrailingSlashes)) {
+    return withoutTrailingSlashes;
+  }
+
+  try {
+    const url = new URL(withoutTrailingSlashes);
+    const normalizedPathname = url.pathname.replace(/\/+$/, '');
+
+    if (!normalizedPathname) {
+      url.pathname = '/api';
+    }
+
+    return url.toString().replace(/\/+$/, '');
+  } catch {
+    return withoutTrailingSlashes;
+  }
 }

@@ -11,7 +11,12 @@ dotenv.config({
 
 export const runtime = {
   port: resolvePort(process.env.PORT),
-  corsOrigins: resolveCorsOrigins(process.env.CORS_ORIGIN),
+  corsOrigins: resolveCorsOrigins(
+    process.env.CORS_ORIGIN ??
+      process.env.CORS_ORIGINS ??
+      process.env.FRONTEND_URL ??
+      process.env.FRONTEND_ORIGIN,
+  ),
   defaults: createDefaultSettings(),
 };
 
@@ -23,7 +28,8 @@ function resolvePort(value) {
 
 function resolveCorsOrigins(value) {
   return String(value ?? '')
-    .split(',')
+    .split(/[,\n]/)
     .map((entry) => entry.trim())
+    .map((entry) => entry.replace(/\/+$/, ''))
     .filter(Boolean);
 }

@@ -73,6 +73,11 @@ Examples:
 - deployed backend:
   - set `CORS_ORIGIN=https://your-frontend.example.com`
 
+Production safety notes:
+- if `VITE_API_BASE_URL` is set to `https://your-backend.example.com` without `/api`, the client now normalizes it to `https://your-backend.example.com/api`
+- the server accepts `CORS_ORIGIN`, `CORS_ORIGINS`, `FRONTEND_URL`, or `FRONTEND_ORIGIN`
+- the server exposes both `/api/...` routes and bare `...` aliases to tolerate older frontend builds
+
 Use a single optional root-level `.env` file for local configuration. Do not create separate `client/.env` or `server/.env` files. See `.env.example` for the root-level template.
 
 ## Live Session Flow

@@ -15,7 +15,7 @@ app.use(
         return;
       }
 
-      if (runtime.corsOrigins.includes(origin)) {
+      if (isOriginAllowed(origin, runtime.corsOrigins)) {
         callback(null, true);
         return;
       }
@@ -38,9 +38,9 @@ app.get('/api/health', (_request, response) => {
   });
 });
 
-app.use('/api/transcribe', transcribeRouter);
-app.use('/api/suggestions', suggestionsRouter);
-app.use('/api/chat', chatRouter);
+app.use(['/api/transcribe', '/transcribe'], transcribeRouter);
+app.use(['/api/suggestions', '/suggestions'], suggestionsRouter);
+app.use(['/api/chat', '/chat'], chatRouter);
 
 app.use((error, _request, response, _next) => {
   if (error?.code === 'LIMIT_FILE_SIZE') {
@@ -59,3 +59,29 @@ app.use((error, _request, response, _next) => {
 app.listen(runtime.port, () => {
   console.log(`Twin-Mind server listening on port ${runtime.port}`);
 });
+
+function isOriginAllowed(origin, allowedOrigins) {
+  const normalizedOrigin = normalizeOrigin(origin);
+
+  return allowedOrigins.some((allowedOrigin) => {
+    const normalizedAllowedOrigin = normalizeOrigin(allowedOrigin);
+
+    if (normalizedAllowedOrigin === normalizedOrigin) {
+      return true;
+    }
+
+    if (!normalizedAllowedOrigin.includes('*')) {
+      return false;
+    }
+
+    const wildcardPattern = normalizedAllowedOrigin
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*/g, '.*');
+
+    return new RegExp(`^${wildcardPattern}$`).test(normalizedOrigin);
+  });
+}
+
+function normalizeOrigin(value) {
+  return String(value ?? '').trim().replace(/\/+$/, '');
+}
