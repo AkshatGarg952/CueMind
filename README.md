@@ -207,6 +207,6 @@ Before submission, verify:
 ## Tradeoffs
 
 - The app keeps everything in a single in-memory session to stay aligned with the assignment and avoid auth or persistence overhead.
-- Transcript chunking defaults to a lower-latency 5-second cadence for live demos, while suggestions are paced separately to avoid refreshing after every tiny audio chunk.
+- Transcript chunking defaults to a roughly 30-second cadence, and suggestion refresh follows that same live rhythm so both surfaces stay aligned.
 - Suggestion generation uses aggressive validation because suggestion quality matters more than clever backend abstraction here.
 - The UI intentionally stays compact and readable instead of adding extra product surface area that the assignment does not reward.

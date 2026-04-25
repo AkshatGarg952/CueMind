@@ -14,8 +14,6 @@ const AUDIO_LEVEL_SAMPLE_INTERVAL_MS = 250;
 const SPEECH_RMS_THRESHOLD = 0.018;
 const SPEECH_PEAK_RMS_THRESHOLD = 0.045;
 const MIN_SPEECH_SAMPLE_COUNT = 3;
-const AUTO_SUGGESTION_REFRESH_INTERVAL_MS = 15000;
-
 export function useLiveSession({
   onSuggestionBatch,
   suggestionBatches,
@@ -678,6 +676,9 @@ export function useLiveSession({
   }
 
   function scheduleAutoSuggestionRefresh(transcriptChunk) {
+    const autoSuggestionRefreshIntervalMs = getAutoSuggestionRefreshIntervalMs(
+      settingsRef.current?.refreshIntervalMs,
+    );
     const now = Date.now();
     const hasNoSuggestionBatches = suggestionBatchesRef.current.length === 0;
     const elapsedSinceLastRefresh = now - lastAutoSuggestionRefreshAtRef.current;
@@ -687,7 +688,7 @@ export function useLiveSession({
 
     if (
       hasNoSuggestionBatches ||
-      elapsedSinceLastRefresh >= AUTO_SUGGESTION_REFRESH_INTERVAL_MS
+      elapsedSinceLastRefresh >= autoSuggestionRefreshIntervalMs
     ) {
       clearAutoSuggestionRefreshTimer(autoSuggestionRefreshTimerRef);
       setStatusMessage(`${transcriptUpdatedMessage} Generating a fresh suggestion batch...`);
@@ -704,7 +705,7 @@ export function useLiveSession({
 
     const delayMs = Math.max(
       0,
-      AUTO_SUGGESTION_REFRESH_INTERVAL_MS - elapsedSinceLastRefresh,
+      autoSuggestionRefreshIntervalMs - elapsedSinceLastRefresh,
     );
 
     setStatusMessage(
@@ -987,6 +988,10 @@ function getChunkIntervalMs(refreshIntervalMs) {
     MAX_AUDIO_CHUNK_INTERVAL_MS,
     Math.max(MIN_AUDIO_CHUNK_INTERVAL_MS, parsedValue),
   );
+}
+
+function getAutoSuggestionRefreshIntervalMs(refreshIntervalMs) {
+  return getChunkIntervalMs(refreshIntervalMs);
 }
 
 function getSupportedAudioMimeType() {

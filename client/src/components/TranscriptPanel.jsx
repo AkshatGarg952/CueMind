@@ -46,8 +46,8 @@ export function TranscriptPanel({
         {transcriptChunks.length === 0 ? (
           <div className="empty-state">
             {isRecording
-              ? 'TwinMind is listening now. The first transcript chunk should appear after the current recording window closes, usually in a few seconds.'
-              : 'Start the microphone and speak naturally. TwinMind appends transcript chunks on a low-latency rolling cadence, and a brief pause between thoughts helps each chunk land cleanly.'}
+              ? 'TwinMind is listening now. The first transcript chunk should appear after the current recording window closes, usually in about 30 seconds.'
+              : 'Start the microphone and speak naturally. TwinMind appends transcript chunks on a rolling cadence of about 30 seconds, and a brief pause between thoughts helps each chunk land cleanly.'}
           </div>
         ) : (
           <div className="stack-list">

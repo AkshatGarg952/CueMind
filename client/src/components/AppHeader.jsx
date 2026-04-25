@@ -90,7 +90,7 @@ export function AppHeader({
       <div className={`feedback-banner feedback-banner--${feedbackTone}`}>
         {feedbackMessage ||
           (isRecording
-            ? 'Recording is active. Speak naturally and pause briefly between thoughts so the rolling transcript can land cleanly every few seconds.'
+            ? 'Recording is active. Speak naturally and pause briefly between thoughts so the rolling transcript can land cleanly about every 30 seconds.'
             : 'Open Settings to add your Groq API key before starting the microphone.')}
       </div>
     </header>

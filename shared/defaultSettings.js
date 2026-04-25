@@ -6,8 +6,8 @@ import {
 import { DEFAULT_PROMPTS } from './defaultPrompts.js';
 
 export const DEFAULT_SETTINGS_STORAGE_KEY = 'twin-mind-settings';
-const CURRENT_LATENCY_PROFILE_VERSION = 2;
-const LEGACY_DEFAULT_AUDIO_CHUNK_INTERVAL_MS = 30000;
+const CURRENT_LATENCY_PROFILE_VERSION = 3;
+const LEGACY_DEFAULT_AUDIO_CHUNK_INTERVAL_MS = 5000;
 
 export function createDefaultSettings() {
   return {

@@ -211,8 +211,8 @@ export function SettingsModal({
             reliable transcription. The default interval is
             {' '}
             {DEFAULT_AUDIO_CHUNK_INTERVAL_MS / 1000}
-            seconds for a lower-latency live demo, while suggestions are paced
-            separately so they do not refresh after every tiny audio chunk.
+            seconds, and automatic suggestion refresh follows the same live
+            cadence so transcript and suggestions stay aligned.
           </div>
         </div>
 
